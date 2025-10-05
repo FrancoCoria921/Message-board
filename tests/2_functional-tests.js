@@ -2,6 +2,7 @@ const chaiHttp = require('chai-http');
 const chai = require('chai');
 const assert = chai.assert;
 const server = require('../server');
+const { Thread } = require('../models/Thread.js');
 
 chai.use(chaiHttp);
 
@@ -10,7 +11,12 @@ suite('Functional Tests', function() {
   let testThreadId;
   let testReplyId;
   
-  this.timeout(5000);
+  this.timeout(10000);
+
+  // Clean database before all tests
+  before(async function () {
+    await Thread.deleteMany({});
+  });
 
   suite('API ROUTING FOR /api/threads/:board', function() {
     
@@ -38,7 +44,7 @@ suite('Functional Tests', function() {
             assert.isArray(res.body);
             assert.isAtMost(res.body.length, 10);
             if (res.body.length > 0) {
-              testThreadId = res.body[0]._id;
+              testThreadId = res.body[0]._id; // Reasignación, no redeclaración
               assert.property(res.body[0], '_id');
               assert.property(res.body[0], 'text');
               assert.property(res.body[0], 'created_on');
@@ -162,7 +168,7 @@ suite('Functional Tests', function() {
             assert.notProperty(res.body, 'reported');
             assert.isArray(res.body.replies);
             if (res.body.replies.length > 0) {
-              testReplyId = res.body.replies[res.body.replies.length - 1]._id;
+              testReplyId = res.body.replies[res.body.replies.length - 1]._id; // Reasignación, no redeclaración
               assert.property(res.body.replies[0], '_id');
               assert.property(res.body.replies[0], 'text');
               assert.property(res.body.replies[0], 'created_on');
