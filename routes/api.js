@@ -125,24 +125,26 @@ module.exports = function (app) {
         }
 
         const hashedPassword = await bcrypt.hash(delete_password, 12);
-        
+
         const thread = await Thread.findOne({ _id: thread_id, board: board });
-        
+
         if (!thread) {
           return res.status(404).json({ error: 'thread not found' });
         }
 
+        // Usar la misma variable de tiempo para evitar diferencias de microsegundos
+        const now = new Date();
         const newReply = {
           text: text,
           delete_password: hashedPassword,
-          created_on: new Date(),
+          created_on: now,
           reported: false
         };
 
         thread.replies.push(newReply);
         thread.replycount = thread.replies.length;
-        thread.bumped_on = new Date(); // Update bumped_on to current date
-        
+        thread.bumped_on = now; // Usar el mismo valor que created_on
+
         await thread.save();
         res.redirect(`/b/${board}/${thread_id}`);
       } catch (error) {
