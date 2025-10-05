@@ -9,16 +9,18 @@ suite('Functional Tests', function() {
   
   let testThreadId;
   let testReplyId;
+  
+  this.timeout(5000);
 
   suite('API ROUTING FOR /api/threads/:board', function() {
     
     suite('POST', function() {
       test('Creating a new thread: POST request to /api/threads/{board}', function(done) {
         chai.request(server)
-          .post('/api/threads/test')
+          .post('/api/threads/general')
           .send({
-            text: 'Test thread text',
-            delete_password: 'password123'
+            text: 'Test thread for functional testing',
+            delete_password: 'testpass123'
           })
           .end(function(err, res) {
             assert.equal(res.status, 200);
@@ -30,11 +32,11 @@ suite('Functional Tests', function() {
     suite('GET', function() {
       test('Viewing the 10 most recent threads with 3 replies each: GET request to /api/threads/{board}', function(done) {
         chai.request(server)
-          .get('/api/threads/test')
+          .get('/api/threads/general')
           .end(function(err, res) {
             assert.equal(res.status, 200);
             assert.isArray(res.body);
-            assert.isBelow(res.body.length, 11);
+            assert.isAtMost(res.body.length, 10);
             if (res.body.length > 0) {
               testThreadId = res.body[0]._id;
               assert.property(res.body[0], '_id');
@@ -46,7 +48,14 @@ suite('Functional Tests', function() {
               assert.notProperty(res.body[0], 'delete_password');
               assert.notProperty(res.body[0], 'reported');
               assert.isArray(res.body[0].replies);
-              assert.isBelow(res.body[0].replies.length, 4);
+              assert.isAtMost(res.body[0].replies.length, 3);
+              if (res.body[0].replies.length > 0) {
+                assert.property(res.body[0].replies[0], '_id');
+                assert.property(res.body[0].replies[0], 'text');
+                assert.property(res.body[0].replies[0], 'created_on');
+                assert.notProperty(res.body[0].replies[0], 'delete_password');
+                assert.notProperty(res.body[0].replies[0], 'reported');
+              }
             }
             done();
           });
@@ -56,7 +65,7 @@ suite('Functional Tests', function() {
     suite('DELETE', function() {
       test('Deleting a thread with the incorrect password: DELETE request to /api/threads/{board} with an invalid delete_password', function(done) {
         chai.request(server)
-          .delete('/api/threads/test')
+          .delete('/api/threads/general')
           .send({
             thread_id: testThreadId,
             delete_password: 'wrongpassword'
@@ -69,28 +78,34 @@ suite('Functional Tests', function() {
       });
       
       test('Deleting a thread with the correct password: DELETE request to /api/threads/{board} with a valid delete_password', function(done) {
+        // First create a thread to delete
         chai.request(server)
-          .post('/api/threads/test')
+          .post('/api/threads/general')
           .send({
-            text: 'Thread to delete',
-            delete_password: 'delete123'
+            text: 'Thread to be deleted',
+            delete_password: 'deletepass123'
           })
           .end(function(err, res) {
+            // Get the thread ID
             chai.request(server)
-              .get('/api/threads/test')
+              .get('/api/threads/general')
               .end(function(err, res) {
-                const threadToDelete = res.body.find(thread => thread.text === 'Thread to delete');
-                chai.request(server)
-                  .delete('/api/threads/test')
-                  .send({
-                    thread_id: threadToDelete._id,
-                    delete_password: 'delete123'
-                  })
-                  .end(function(err, res) {
-                    assert.equal(res.status, 200);
-                    assert.equal(res.text, 'success');
-                    done();
-                  });
+                const threadToDelete = res.body.find(thread => thread.text === 'Thread to be deleted');
+                if (threadToDelete) {
+                  chai.request(server)
+                    .delete('/api/threads/general')
+                    .send({
+                      thread_id: threadToDelete._id,
+                      delete_password: 'deletepass123'
+                    })
+                    .end(function(err, res) {
+                      assert.equal(res.status, 200);
+                      assert.equal(res.text, 'success');
+                      done();
+                    });
+                } else {
+                  done(new Error('Could not find thread to delete'));
+                }
               });
           });
       });
@@ -99,7 +114,7 @@ suite('Functional Tests', function() {
     suite('PUT', function() {
       test('Reporting a thread: PUT request to /api/threads/{board}', function(done) {
         chai.request(server)
-          .put('/api/threads/test')
+          .put('/api/threads/general')
           .send({
             thread_id: testThreadId
           })
@@ -118,10 +133,10 @@ suite('Functional Tests', function() {
     suite('POST', function() {
       test('Creating a new reply: POST request to /api/replies/{board}', function(done) {
         chai.request(server)
-          .post('/api/replies/test')
+          .post('/api/replies/general')
           .send({
             thread_id: testThreadId,
-            text: 'Test reply text',
+            text: 'Test reply for functional testing',
             delete_password: 'replypass123'
           })
           .end(function(err, res) {
@@ -134,7 +149,7 @@ suite('Functional Tests', function() {
     suite('GET', function() {
       test('Viewing a single thread with all replies: GET request to /api/replies/{board}', function(done) {
         chai.request(server)
-          .get('/api/replies/test')
+          .get('/api/replies/general')
           .query({ thread_id: testThreadId })
           .end(function(err, res) {
             assert.equal(res.status, 200);
@@ -162,7 +177,7 @@ suite('Functional Tests', function() {
     suite('PUT', function() {
       test('Reporting a reply: PUT request to /api/replies/{board}', function(done) {
         chai.request(server)
-          .put('/api/replies/test')
+          .put('/api/replies/general')
           .send({
             thread_id: testThreadId,
             reply_id: testReplyId
@@ -178,7 +193,7 @@ suite('Functional Tests', function() {
     suite('DELETE', function() {
       test('Deleting a reply with the incorrect password: DELETE request to /api/replies/{board} with an invalid delete_password', function(done) {
         chai.request(server)
-          .delete('/api/replies/test')
+          .delete('/api/replies/general')
           .send({
             thread_id: testThreadId,
             reply_id: testReplyId,
@@ -193,7 +208,7 @@ suite('Functional Tests', function() {
       
       test('Deleting a reply with the correct password: DELETE request to /api/replies/{board} with a valid delete_password', function(done) {
         chai.request(server)
-          .delete('/api/replies/test')
+          .delete('/api/replies/general')
           .send({
             thread_id: testThreadId,
             reply_id: testReplyId,

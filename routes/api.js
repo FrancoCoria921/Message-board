@@ -46,14 +46,17 @@ module.exports = function (app) {
 
         // For each thread, limit replies to 3 most recent and don't show reported or delete_password
         const processedThreads = threads.map(thread => {
-          const replies = thread.replies
-            .sort((a, b) => new Date(b.created_on) - new Date(a.created_on))
-            .slice(0, 3)
-            .map(reply => ({
-              _id: reply._id,
-              text: reply.text,
-              created_on: reply.created_on
-            }));
+          let replies = [];
+          if (thread.replies && thread.replies.length > 0) {
+            replies = thread.replies
+              .sort((a, b) => new Date(b.created_on) - new Date(a.created_on))
+              .slice(0, 3)
+              .map(reply => ({
+                _id: reply._id,
+                text: reply.text,
+                created_on: reply.created_on
+              }));
+          }
           
           return {
             _id: thread._id,
@@ -61,12 +64,13 @@ module.exports = function (app) {
             created_on: thread.created_on,
             bumped_on: thread.bumped_on,
             replies: replies,
-            replycount: thread.replycount
+            replycount: thread.replycount || 0
           };
         });
 
         res.json(processedThreads);
       } catch (error) {
+        console.error('Error fetching threads:', error);
         res.status(500).json({ error: 'could not fetch threads' });
       }
     })
@@ -131,18 +135,18 @@ module.exports = function (app) {
 
         const hashedPassword = await bcrypt.hash(delete_password, 12);
         
+        const thread = await Thread.findOne({ _id: thread_id, board: board });
+        
+        if (!thread) {
+          return res.status(404).json({ error: 'thread not found' });
+        }
+
         const newReply = {
           text: text,
           delete_password: hashedPassword,
           created_on: new Date(),
           reported: false
         };
-
-        const thread = await Thread.findOne({ _id: thread_id, board: board });
-        
-        if (!thread) {
-          return res.status(404).json({ error: 'thread not found' });
-        }
 
         thread.replies.push(newReply);
         thread.replycount = thread.replies.length;
@@ -151,6 +155,7 @@ module.exports = function (app) {
         await thread.save();
         res.redirect(`/b/${board}/${thread_id}`);
       } catch (error) {
+        console.error('Error creating reply:', error);
         res.status(500).json({ error: 'could not create reply' });
       }
     })

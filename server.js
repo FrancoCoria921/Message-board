@@ -13,7 +13,9 @@ const app = express();
 
 // Security middleware
 app.use(helmet({
-  referrerPolicy: { policy: "same-origin" }
+  referrerPolicy: { policy: "same-origin" },
+  dnsPrefetchControl: { allow: false },
+  frameguard: { action: 'sameorigin' }
 }));
 
 app.use('/public', express.static(process.cwd() + '/public'));
