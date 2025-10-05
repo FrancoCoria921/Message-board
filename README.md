@@ -1,6 +1,6 @@
 # Anonymous Message Board
 
-Este es un proyecto de tabla de mensajes anónima construido para FreeCodeCamp.
+Este es un proyecto de tabla d mensajes anónima construido para FreeCodeCamp.
 
 ## Configuración para Railway
 
