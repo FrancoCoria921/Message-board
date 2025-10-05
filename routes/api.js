@@ -41,28 +41,26 @@ module.exports = function (app) {
         const threads = await Thread.find({ board: board })
           .sort({ bumped_on: -1 })
           .limit(10)
-          .select('-reported -delete_password')
+          .select('-reported -delete_password -__v')
           .lean();
 
         // For each thread, limit replies to 3 most recent and don't show reported or delete_password
         const processedThreads = threads.map(thread => {
           let replies = [];
           if (thread.replies && thread.replies.length > 0) {
+            // Sort replies by created_on descending (most recent first) and take 3
             replies = thread.replies
               .sort((a, b) => new Date(b.created_on) - new Date(a.created_on))
               .slice(0, 3)
-              .map(reply => ({
-                _id: reply._id,
-                text: reply.text,
-                created_on: reply.created_on
-              }));
+              .map(reply => {
+                const { delete_password, reported, __v, ...replyData } = reply;
+                return replyData;
+              });
           }
           
+          const { __v, ...threadData } = thread;
           return {
-            _id: thread._id,
-            text: thread.text,
-            created_on: thread.created_on,
-            bumped_on: thread.bumped_on,
+            ...threadData,
             replies: replies,
             replycount: thread.replycount || 0
           };
@@ -150,7 +148,7 @@ module.exports = function (app) {
 
         thread.replies.push(newReply);
         thread.replycount = thread.replies.length;
-        thread.bumped_on = new Date();
+        thread.bumped_on = new Date(); // Update bumped_on to current date
         
         await thread.save();
         res.redirect(`/b/${board}/${thread_id}`);
@@ -169,22 +167,25 @@ module.exports = function (app) {
         }
 
         const thread = await Thread.findOne({ _id: thread_id, board: board })
-          .select('-reported -delete_password')
+          .select('-reported -delete_password -__v')
           .lean();
         
         if (!thread) {
           return res.status(404).json({ error: 'thread not found' });
         }
 
-        // Remove reported and delete_password from replies
-        thread.replies = thread.replies.map(reply => ({
-          _id: reply._id,
-          text: reply.text,
-          created_on: reply.created_on
-        }));
+        // Remove reported and delete_password from replies but keep all other fields
+        if (thread.replies && thread.replies.length > 0) {
+          thread.replies = thread.replies.map(reply => {
+            const { delete_password, reported, __v, ...replyData } = reply;
+            return replyData;
+          });
+        }
 
-        res.json(thread);
+        const { __v, ...threadData } = thread;
+        res.json(threadData);
       } catch (error) {
+        console.error('Error fetching thread:', error);
         res.status(500).json({ error: 'could not fetch thread' });
       }
     })

@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+// Suppress strictQuery warning
+mongoose.set('strictQuery', false);
+
 // Connect to MongoDB
 mongoose.connect(process.env.DB, {
   useNewUrlParser: true,
