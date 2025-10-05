@@ -169,7 +169,7 @@ module.exports = function (app) {
           return res.status(404).json({ error: 'thread not found' });
         }
 
-        // Ordena los replies por fecha ascendente y elimina campos sensibles
+        // Ordena los replies por fecha ascendente y elimina campos sensibles (incluye reported)
         if (thread.replies && thread.replies.length > 0) {
           thread.replies = [...thread.replies]
             .sort((a, b) => new Date(a.created_on) - new Date(b.created_on))
