@@ -117,36 +117,31 @@ module.exports = function (app) {
   app.route('/api/replies/:board')
     .post(async (req, res) => {
       try {
-        const { text, delete_password, thread_id } = req.body;
+        // Declarar timestamp al inicio
+        const timestamp = new Date();
+        const { thread_id, text, delete_password } = req.body;
         const board = req.params.board;
-        
         if (!text || !delete_password || !thread_id) {
           return res.status(400).json({ error: 'missing required fields' });
         }
-
-        const hashedPassword = await bcrypt.hash(delete_password, 12);
-
-        const thread = await Thread.findOne({ _id: thread_id, board: board });
-
+        // Buscar el thread
+        const thread = await Thread.findOne({ _id: thread_id, board });
         if (!thread) {
           return res.status(404).json({ error: 'thread not found' });
         }
-
-        // Usar la misma variable de tiempo para evitar diferencias de microsegundos
-        const now = new Date();
+        // Asignar timestamp a bumped_on y created_on
+        thread.bumped_on = timestamp;
+        const hashedPassword = await bcrypt.hash(delete_password, 12);
         const newReply = {
-          text: text,
+          text,
+          created_on: timestamp,
           delete_password: hashedPassword,
-          created_on: now,
           reported: false
         };
-
         thread.replies.push(newReply);
         thread.replycount = thread.replies.length;
-        thread.bumped_on = now; // Usar el mismo valor que created_on
-
         await thread.save();
-        res.redirect(`/b/${board}/${thread_id}`);
+        return res.redirect(`/b/${board}/${thread_id}`);
       } catch (error) {
         console.error('Error creating reply:', error);
         res.status(500).json({ error: 'could not create reply' });
