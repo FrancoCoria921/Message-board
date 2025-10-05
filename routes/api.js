@@ -239,10 +239,8 @@ module.exports = function (app) {
         if (!reply) {
           return res.status(404).json({ error: 'reply not found' });
         }
-        console.log('Antes de reportar:', reply);
         reply.reported = true;
         await thread.save();
-        console.log('Después de reportar:', reply);
         res.send('reported');
       } catch (error) {
         res.status(500).json({ error: 'could not report reply' });
