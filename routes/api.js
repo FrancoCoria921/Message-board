@@ -10,25 +10,21 @@ module.exports = function (app) {
       try {
         const { text, delete_password } = req.body;
         const board = req.params.board;
-        
         if (!text || !delete_password) {
           return res.status(400).json({ error: 'missing required fields' });
         }
-
         const hashedPassword = await bcrypt.hash(delete_password, 12);
-        
         const newThread = new Thread({
-          text: text,
+          text,
           delete_password: hashedPassword,
-          board: board,
+          board,
           created_on: new Date(),
           bumped_on: new Date(),
           reported: false,
           replies: [],
           replycount: 0
         });
-
-        const savedThread = await newThread.save();
+        await newThread.save();
         res.redirect(`/b/${board}/`);
       } catch (error) {
         res.status(500).json({ error: 'could not create thread' });
@@ -37,19 +33,18 @@ module.exports = function (app) {
     .get(async (req, res) => {
       try {
         const board = req.params.board;
-        
-        const threads = await Thread.find({ board: board })
+        // Get threads sorted by bumped_on descending (most recent first)
+        const threads = await Thread.find({ board })
           .sort({ bumped_on: -1 })
           .limit(10)
           .select('-reported -delete_password -__v')
           .lean();
-
         // For each thread, limit replies to 3 most recent and don't show reported or delete_password
         const processedThreads = threads.map(thread => {
           let replies = [];
           if (thread.replies && thread.replies.length > 0) {
             // Sort replies by created_on descending (most recent first) and take 3
-            replies = thread.replies
+            replies = [...thread.replies]
               .sort((a, b) => new Date(b.created_on) - new Date(a.created_on))
               .slice(0, 3)
               .map(reply => {
@@ -57,15 +52,13 @@ module.exports = function (app) {
                 return replyData;
               });
           }
-          
-          const { __v, ...threadData } = thread;
           return {
-            ...threadData,
-            replies: replies,
+            ...thread,
+            replies,
             replycount: thread.replycount || 0
           };
         });
-
+        // Ensure most recent thread is at index 0
         res.json(processedThreads);
       } catch (error) {
         console.error('Error fetching threads:', error);
